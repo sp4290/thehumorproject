@@ -1,21 +1,15 @@
-import { supabase } from "../lib/supabase";
+import Link from "next/link";
 
-export default async function Page() {
-    const { data } = await supabase
-        .from("images")
-        .select("*")
-        .limit(5);
-
+export default function Home() {
     return (
-        <main style={{ padding: "20px" }}>
-            <h1>Supabase Data</h1>
+        <main>
+            <h1>Hello World</h1>
 
-            {data?.map((item: any) => (
-                <div key={item.id} style={{ marginBottom: 40 }}>
-                    <img src={item.url} width="300" />
-                    <p>{item.image_description}</p>
-                </div>
-            ))}
+            <p>
+                Go to the data list page:
+            </p>
+
+            <Link href="/list">View Supabase Data</Link>
         </main>
     );
 }
