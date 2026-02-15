@@ -6,9 +6,7 @@ export default async function ListPage() {
         .select("*")
         .limit(10);
 
-    if (error) {
-        return <div>Error loading data</div>;
-    }
+    if (error) return <div>Error loading data</div>;
 
     return (
         <main style={{ padding: "20px" }}>
@@ -17,12 +15,8 @@ export default async function ListPage() {
             <ul>
                 {data?.map((row: any) => (
                     <li key={row.id} style={{ marginBottom: "20px" }}>
-                        <img
-                            src={row.url}
-                            alt="image"
-                            width="200"
-                        />
-                        <p>ID: {row.id}</p>
+                        <img src={row.url} width="200" />
+                        <p>{row.id}</p>
                     </li>
                 ))}
             </ul>
