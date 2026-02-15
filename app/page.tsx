@@ -2,12 +2,10 @@ import Link from "next/link";
 
 export default function Home() {
     return (
-        <main>
+        <main style={{ padding: "20px" }}>
             <h1>Hello World</h1>
 
-            <p>
-                Go to the data list page:
-            </p>
+            <p>Supabase Data</p>
 
             <Link href="/list">View Supabase Data</Link>
         </main>
