@@ -7,51 +7,34 @@ import LoginButton from "@/components/LoginButton"
 export default function Home() {
     const [captions, setCaptions] = useState<any[]>([])
     const [user, setUser] = useState<any>(null)
-
-    // Load captions
-    const loadCaptions = async () => {
-        const { data, error } = await supabase
-            .from("captions")
-            .select("*")
-
-        if (error) console.error(error)
-
-        setCaptions(data || [])
-    }
-
-    // Load user session
-    const loadUser = async () => {
-        const { data } = await supabase.auth.getUser()
-        setUser(data.user)
-    }
+    const [userVotes, setUserVotes] = useState<Record<string, number>>({})
 
     useEffect(() => {
-        loadCaptions()
-        loadUser()
+        const loadData = async () => {
+            const { data } = await supabase.from("captions").select("*")
+            setCaptions(data || [])
 
-        // 🔥 Listen for auth changes
-        const {
-            data: { subscription },
-        } = supabase.auth.onAuthStateChange(() => {
-            loadUser()
-        })
-
-        return () => {
-            subscription.unsubscribe()
+            const { data: userData } = await supabase.auth.getUser()
+            setUser(userData.user)
         }
+
+        loadData()
     }, [])
 
     const handleVote = async (captionId: string, value: number) => {
-        if (!user) {
-            alert("You must be logged in to vote")
-            return
-        }
+        if (!user) return
+
+        // 🔥 Update UI immediately
+        setUserVotes((prev) => ({
+            ...prev,
+            [captionId]: value,
+        }))
 
         const now = new Date().toISOString()
 
-        const { error } = await supabase
+        await supabase
             .from("caption_votes")
-            .insert([
+            .upsert(
                 {
                     profile_id: user.id,
                     caption_id: captionId,
@@ -59,14 +42,8 @@ export default function Home() {
                     created_datetime_utc: now,
                     modified_datetime_utc: now,
                 },
-            ])
-
-        if (error) {
-            console.log("Insert failed:", error)
-            alert("Vote failed")
-        } else {
-            alert("Vote recorded!")
-        }
+                { onConflict: "profile_id,caption_id" }
+            )
     }
 
     return (
@@ -79,28 +56,34 @@ export default function Home() {
 
             {captions.map((caption) => (
                 <div key={caption.id} className="border p-4 mb-4 rounded">
-                    <p>{caption.text}</p>
+                    <p>{caption.content}</p>
 
-                    {user ? (
-                        <div className="mt-3 space-x-2">
+                    {user && (
+                        <div className="mt-3 flex gap-3">
                             <button
                                 onClick={() => handleVote(caption.id, 1)}
-                                className="bg-green-500 text-white px-3 py-1 rounded"
+                                style={{
+                                    backgroundColor:
+                                        userVotes[caption.id] === 1 ? "#16a34a" : "#e5e7eb",
+                                    color: userVotes[caption.id] === 1 ? "white" : "black",
+                                }}
+                                className="px-4 py-2 rounded border"
                             >
                                 👍 Upvote
                             </button>
 
                             <button
                                 onClick={() => handleVote(caption.id, -1)}
-                                className="bg-red-500 text-white px-3 py-1 rounded"
+                                style={{
+                                    backgroundColor:
+                                        userVotes[caption.id] === -1 ? "#dc2626" : "#e5e7eb",
+                                    color: userVotes[caption.id] === -1 ? "white" : "black",
+                                }}
+                                className="px-4 py-2 rounded border"
                             >
                                 👎 Downvote
                             </button>
                         </div>
-                    ) : (
-                        <p className="text-gray-500 mt-2">
-                            Log in to vote
-                        </p>
                     )}
                 </div>
             ))}
