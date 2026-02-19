@@ -6,7 +6,9 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
 
-    const cookieStore = await cookies();
+    const cookieStore = await cookies(); // ✅ await here
+
+    const response = NextResponse.redirect(new URL("/", request.url));
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,8 +18,12 @@ export async function GET(request: Request) {
                 get(name: string) {
                     return cookieStore.get(name)?.value;
                 },
-                set() {},
-                remove() {},
+                set(name: string, value: string, options: any) {
+                    response.cookies.set(name, value, options);
+                },
+                remove(name: string, options: any) {
+                    response.cookies.set(name, "", options);
+                },
             },
         }
     );
@@ -26,5 +32,5 @@ export async function GET(request: Request) {
         await supabase.auth.exchangeCodeForSession(code);
     }
 
-    return NextResponse.redirect(`${url.origin}/protected`);
+    return response;
 }
