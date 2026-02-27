@@ -178,7 +178,6 @@ export default function Home() {
                 {user ? "Logged in" : "Not logged in"}
             </p>
 
-            {/* ✅ WEEK 5 SECTION ADDED HERE */}
             {user && (
                 <div style={{ marginTop: 30, marginBottom: 60 }}>
                     <input
@@ -220,7 +219,6 @@ export default function Home() {
                 </div>
             )}
 
-            {/* ORIGINAL WEEK 4 FEED BELOW */}
             {captions.map((caption) => (
                 <div
                     key={caption.id}
