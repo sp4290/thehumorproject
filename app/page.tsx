@@ -6,8 +6,11 @@ import LoginButton from "@/components/LoginButton"
 
 export default function Home() {
     const [captions, setCaptions] = useState<any[]>([])
+    const [generatedCaptions, setGeneratedCaptions] = useState<any[]>([])
     const [user, setUser] = useState<any>(null)
     const [userVotes, setUserVotes] = useState<Record<string, number>>({})
+    const [file, setFile] = useState<File | null>(null)
+    const [uploadLoading, setUploadLoading] = useState(false)
     const [loading, setLoading] = useState(true)
 
     const FRAME_WIDTH = 600
@@ -72,6 +75,86 @@ export default function Home() {
         )
     }
 
+    const handleUpload = async () => {
+        if (!file || !user) {
+            alert("Login and select a file first")
+            return
+        }
+
+        setUploadLoading(true)
+
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData.session?.access_token
+
+        if (!token) {
+            alert("No auth token found")
+            return
+        }
+
+        // STEP 1
+        const presignedRes = await fetch(
+            "https://api.almostcrackd.ai/pipeline/generate-presigned-url",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    contentType: file.type,
+                }),
+            }
+        )
+
+        const { presignedUrl, cdnUrl } = await presignedRes.json()
+
+        // STEP 2
+        await fetch(presignedUrl, {
+            method: "PUT",
+            headers: {
+                "Content-Type": file.type,
+            },
+            body: file,
+        })
+
+        // STEP 3
+        const registerRes = await fetch(
+            "https://api.almostcrackd.ai/pipeline/upload-image-from-url",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    imageUrl: cdnUrl,
+                    isCommonUse: false,
+                }),
+            }
+        )
+
+        const { imageId } = await registerRes.json()
+
+        // STEP 4
+        const captionRes = await fetch(
+            "https://api.almostcrackd.ai/pipeline/generate-captions",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    imageId,
+                }),
+            }
+        )
+
+        const captionData = await captionRes.json()
+        setGeneratedCaptions(captionData)
+        setUploadLoading(false)
+    }
+
     if (loading) {
         return (
             <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 20 }}>
@@ -86,16 +169,58 @@ export default function Home() {
                 minHeight: "100vh",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center", // ✅ FORCE CENTER
+                alignItems: "center",
             }}
         >
             <LoginButton />
 
-            <p style={{ marginTop: 20, marginBottom: 60, fontWeight: 600 }}>
+            <p style={{ marginTop: 20, fontWeight: 600 }}>
                 {user ? "Logged in" : "Not logged in"}
             </p>
 
-            {/* POSTS */}
+            {/* ✅ WEEK 5 SECTION ADDED HERE */}
+            {user && (
+                <div style={{ marginTop: 30, marginBottom: 60 }}>
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
+                        onChange={(e) =>
+                            setFile(e.target.files?.[0] || null)
+                        }
+                    />
+
+                    <button
+                        onClick={handleUpload}
+                        style={{
+                            marginLeft: 15,
+                            padding: "10px 25px",
+                            border: "2px solid black",
+                            borderRadius: 30,
+                        }}
+                    >
+                        Upload & Generate
+                    </button>
+
+                    {uploadLoading && (
+                        <p style={{ marginTop: 15 }}>
+                            Generating captions...
+                        </p>
+                    )}
+
+                    {generatedCaptions.length > 0 && (
+                        <div style={{ marginTop: 20 }}>
+                            <h3>Generated Captions:</h3>
+                            {generatedCaptions.map((c: any, index: number) => (
+                                <p key={index} style={{ marginTop: 8 }}>
+                                    {c.content || c.text}
+                                </p>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ORIGINAL WEEK 4 FEED BELOW */}
             {captions.map((caption) => (
                 <div
                     key={caption.id}
@@ -103,11 +228,10 @@ export default function Home() {
                         width: FRAME_WIDTH,
                         display: "flex",
                         flexDirection: "column",
-                        alignItems: "center", // ✅ FORCE CENTER EVERYTHING
-                        marginBottom: 120, // spacing between posts
+                        alignItems: "center",
+                        marginBottom: 120,
                     }}
                 >
-                    {/* BLACK IMAGE FRAME */}
                     <div
                         style={{
                             width: FRAME_WIDTH,
@@ -127,7 +251,7 @@ export default function Home() {
                                 style={{
                                     maxWidth: "100%",
                                     maxHeight: "100%",
-                                    objectFit: "contain", // vertical images centered
+                                    objectFit: "contain",
                                 }}
                             />
                         ) : (
@@ -135,7 +259,6 @@ export default function Home() {
                         )}
                     </div>
 
-                    {/* CAPTION */}
                     <p
                         style={{
                             marginTop: 30,
@@ -146,7 +269,6 @@ export default function Home() {
                         {caption.content}
                     </p>
 
-                    {/* VOTE BUTTONS */}
                     {user && (
                         <div
                             style={{
