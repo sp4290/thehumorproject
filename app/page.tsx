@@ -212,7 +212,7 @@ export default function Home() {
         >
             <LoginButton />
 
-            <p style={{ marginTop: 20, fontWeight: 600 }}>
+            <p style={{ marginTop: 20, marginBottom: 40, fontWeight: 600 }}>
                 {user ? "Logged in" : "Log In to Vote"}
             </p>
 
