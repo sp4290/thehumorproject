@@ -1,8 +1,27 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { useEffect, useState } from 'react'
 
 export default function LoginButton() {
+    const [user, setUser] = useState<any>(null)
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => {
+            setUser(data.user)
+        })
+
+        const { data: listener } = supabase.auth.onAuthStateChange(() => {
+            supabase.auth.getUser().then(({ data }) => {
+                setUser(data.user)
+            })
+        })
+
+        return () => {
+            listener.subscription.unsubscribe()
+        }
+    }, [])
+
     const login = async () => {
         await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -18,20 +37,22 @@ export default function LoginButton() {
     }
 
     return (
-        <div className="mb-4 space-x-2">
-            <button
-                onClick={login}
-                className="bg-blue-500 text-white px-4 py-2 rounded"
-            >
-                Login with Google
-            </button>
-
-            <button
-                onClick={logout}
-                className="bg-gray-500 text-white px-4 py-2 rounded"
-            >
-                Logout
-            </button>
+        <div className="flex gap-4">
+            {!user ? (
+                <button
+                    onClick={login}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                    Login with Google
+                </button>
+            ) : (
+                <button
+                    onClick={logout}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+                >
+                    Logout
+                </button>
+            )}
         </div>
     )
 }

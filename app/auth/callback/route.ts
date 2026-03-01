@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const code = url.searchParams.get("code");
 
-    const cookieStore = await cookies(); // ✅ await here
+    const cookieStore = await cookies();
 
     const response = NextResponse.redirect(new URL("/", request.url));
 

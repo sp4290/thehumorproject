@@ -26,14 +26,14 @@ export default function Home() {
                     supabase.auth.getUser(),
                 ])
 
-            const caps = captionData || []
-            setUser(userData.user)
+            const currentUser = userData.user
+            setUser(currentUser)
 
-            const imageIds = caps.map((c: any) => c.image_id).filter(Boolean)
+            const imageIds = captionData?.map((c: any) => c.image_id).filter(Boolean)
 
             let imageMap = new Map<string, string>()
 
-            if (imageIds.length > 0) {
+            if (imageIds && imageIds.length > 0) {
                 const { data: images } = await supabase
                     .from("images")
                     .select("id, url")
@@ -44,12 +44,28 @@ export default function Home() {
                 })
             }
 
-            const merged = caps.map((c: any) => ({
+            const merged = captionData?.map((c: any) => ({
                 ...c,
                 image_url: c.image_id ? imageMap.get(c.image_id) || null : null,
             }))
 
-            setCaptions(merged)
+            setCaptions(merged || [])
+
+            // 🔥 Load existing votes so they persist on refresh
+            if (currentUser && captionData?.length) {
+                const { data: votes } = await supabase
+                    .from("caption_votes")
+                    .select("caption_id, vote_value")
+                    .eq("profile_id", currentUser.id)
+
+                const voteMap: Record<string, number> = {}
+                votes?.forEach((v: any) => {
+                    voteMap[v.caption_id] = v.vote_value
+                })
+
+                setUserVotes(voteMap)
+            }
+
             setLoading(false)
         }
 
@@ -57,22 +73,32 @@ export default function Home() {
     }, [])
 
     const handleVote = async (captionId: string, value: number) => {
-        if (!user) return
-
-        setUserVotes((prev) => ({ ...prev, [captionId]: value }))
+        if (!user) {
+            alert("You must be logged in to vote")
+            return
+        }
 
         const now = new Date().toISOString()
 
-        await supabase.from("caption_votes").upsert(
-            {
-                profile_id: user.id,
-                caption_id: captionId,
-                vote_value: value,
-                created_datetime_utc: now,
-                modified_datetime_utc: now,
-            },
-            { onConflict: "profile_id,caption_id" }
-        )
+        setUserVotes((prev) => ({ ...prev, [captionId]: value }))
+
+        const { error } = await supabase
+            .from("caption_votes")
+            .upsert(
+                {
+                    profile_id: user.id,
+                    caption_id: captionId,
+                    vote_value: value,
+                    created_datetime_utc: now,
+                    modified_datetime_utc: now,
+                },
+                { onConflict: "profile_id,caption_id" }
+            )
+
+        if (error) {
+            console.log("Vote failed:", error)
+            alert("Vote failed")
+        }
     }
 
     const handleUpload = async () => {
@@ -83,75 +109,76 @@ export default function Home() {
 
         setUploadLoading(true)
 
-        const { data: sessionData } = await supabase.auth.getSession()
-        const token = sessionData.session?.access_token
+        try {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const token = sessionData.session?.access_token
 
-        if (!token) {
-            alert("No auth token found")
-            return
+            if (!token) throw new Error("No auth token")
+
+            const presignedRes = await fetch(
+                "https://api.almostcrackd.ai/pipeline/generate-presigned-url",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ contentType: file.type }),
+                }
+            )
+
+            if (!presignedRes.ok) throw new Error("Presigned URL failed")
+
+            const { presignedUrl, cdnUrl } = await presignedRes.json()
+
+            const uploadRes = await fetch(presignedUrl, {
+                method: "PUT",
+                headers: { "Content-Type": file.type },
+                body: file,
+            })
+
+            if (!uploadRes.ok) throw new Error("Upload failed")
+
+            const registerRes = await fetch(
+                "https://api.almostcrackd.ai/pipeline/upload-image-from-url",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        imageUrl: cdnUrl,
+                        isCommonUse: false,
+                    }),
+                }
+            )
+
+            if (!registerRes.ok) throw new Error("Register failed")
+
+            const { imageId } = await registerRes.json()
+
+            const captionRes = await fetch(
+                "https://api.almostcrackd.ai/pipeline/generate-captions",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ imageId }),
+                }
+            )
+
+            if (!captionRes.ok) throw new Error("Caption generation failed")
+
+            const captionData = await captionRes.json()
+            setGeneratedCaptions(captionData)
+        } catch (err) {
+            console.error(err)
+            alert("Upload process failed")
         }
 
-        // STEP 1
-        const presignedRes = await fetch(
-            "https://api.almostcrackd.ai/pipeline/generate-presigned-url",
-            {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    contentType: file.type,
-                }),
-            }
-        )
-
-        const { presignedUrl, cdnUrl } = await presignedRes.json()
-
-        // STEP 2
-        await fetch(presignedUrl, {
-            method: "PUT",
-            headers: {
-                "Content-Type": file.type,
-            },
-            body: file,
-        })
-
-        // STEP 3
-        const registerRes = await fetch(
-            "https://api.almostcrackd.ai/pipeline/upload-image-from-url",
-            {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    imageUrl: cdnUrl,
-                    isCommonUse: false,
-                }),
-            }
-        )
-
-        const { imageId } = await registerRes.json()
-
-        // STEP 4
-        const captionRes = await fetch(
-            "https://api.almostcrackd.ai/pipeline/generate-captions",
-            {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    imageId,
-                }),
-            }
-        )
-
-        const captionData = await captionRes.json()
-        setGeneratedCaptions(captionData)
         setUploadLoading(false)
     }
 
