@@ -213,7 +213,7 @@ export default function Home() {
             <LoginButton />
 
             <p style={{ marginTop: 20, fontWeight: 600 }}>
-                {user ? "Logged in" : "Not logged in"}
+                {user ? "Logged in" : "Log In to Vote"}
             </p>
 
             {user && (
@@ -354,41 +354,41 @@ export default function Home() {
                 </div>
             ))}
 
-            {user && (
-                <div
-                    style={{
-                        marginBottom: 100,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 12,
-                    }}
-                >
-                    {hasMore ? (
-                        <button
-                            onClick={() =>
-                                setPage((prev) => prev + 1)
-                            }
-                            disabled={loadingMore}
-                            style={{
-                                padding: "12px 30px",
-                                borderRadius: 30,
-                                border: "2px solid black",
-                                backgroundColor: "white",
-                                opacity: loadingMore ? 0.6 : 1,
-                            }}
-                        >
-                            {loadingMore
-                                ? "Loading..."
-                                : "Load More Memes"}
-                        </button>
-                    ) : (
+            <div
+                style={{
+                    marginBottom: 100,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 12,
+                }}
+            >
+                {hasMore ? (
+                    <button
+                        onClick={() =>
+                            setPage((prev) => prev + 1)
+                        }
+                        disabled={loadingMore}
+                        style={{
+                            padding: "12px 30px",
+                            borderRadius: 30,
+                            border: "2px solid black",
+                            backgroundColor: "white",
+                            opacity: loadingMore ? 0.6 : 1,
+                        }}
+                    >
+                        {loadingMore
+                            ? "Loading..."
+                            : "Load More Memes"}
+                    </button>
+                ) : (
+                    user && (
                         <p style={{ fontWeight: 600 }}>
                             No more memes to vote
                         </p>
-                    )}
-                </div>
-            )}
+                    )
+                )}
+            </div>
         </div>
     )
 }
