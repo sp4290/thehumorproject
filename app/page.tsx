@@ -28,7 +28,7 @@ export default function Home() {
             else setLoadingMore(true)
 
             try {
-                const [{ data: captionData, error: captionErr }, { data: userData, error: userErr }] =
+                const [{ data: captionData }, { data: userData }] =
                     await Promise.all([
                         supabase
                             .from("captions")
@@ -37,25 +37,23 @@ export default function Home() {
                         supabase.auth.getUser(),
                     ])
 
-                if (captionErr) throw captionErr
-                if (userErr) throw userErr
-
                 const currentUser = userData.user
                 setUser(currentUser)
 
                 const caps = captionData || []
-                if (caps.length < PAGE_SIZE) setHasMore(false)
+
+                if (caps.length < PAGE_SIZE) {
+                    setHasMore(false)
+                }
 
                 const imageIds = caps.map((c: any) => c.image_id).filter(Boolean)
                 const imageMap = new Map<string, string>()
 
                 if (imageIds.length > 0) {
-                    const { data: images, error: imgErr } = await supabase
+                    const { data: images } = await supabase
                         .from("images")
                         .select("id, url")
                         .in("id", imageIds)
-
-                    if (imgErr) throw imgErr
 
                     images?.forEach((img: any) => {
                         imageMap.set(img.id, img.url)
@@ -64,7 +62,9 @@ export default function Home() {
 
                 const merged = caps.map((c: any) => ({
                     ...c,
-                    image_url: c.image_id ? imageMap.get(c.image_id) || null : null,
+                    image_url: c.image_id
+                        ? imageMap.get(c.image_id) || null
+                        : null,
                 }))
 
                 setCaptions((prev) => {
@@ -75,12 +75,10 @@ export default function Home() {
                 })
 
                 if (currentUser && page === 0) {
-                    const { data: votes, error: voteErr } = await supabase
+                    const { data: votes } = await supabase
                         .from("caption_votes")
                         .select("caption_id, vote_value")
                         .eq("profile_id", currentUser.id)
-
-                    if (voteErr) throw voteErr
 
                     const voteMap: Record<string, number> = {}
                     votes?.forEach((v: any) => {
@@ -88,7 +86,7 @@ export default function Home() {
                     })
                     setUserVotes(voteMap)
                 }
-            } catch (e) {
+            } catch {
                 setHasMore(false)
             } finally {
                 setInitialLoading(false)
@@ -100,16 +98,13 @@ export default function Home() {
     }, [page])
 
     const handleVote = async (captionId: string, value: number) => {
-        if (!user) {
-            alert("You must be logged in to vote")
-            return
-        }
+        if (!user) return
 
         setUserVotes((prev) => ({ ...prev, [captionId]: value }))
 
         const now = new Date().toISOString()
 
-        const { error } = await supabase
+        await supabase
             .from("caption_votes")
             .upsert(
                 {
@@ -121,24 +116,17 @@ export default function Home() {
                 },
                 { onConflict: "profile_id,caption_id" }
             )
-
-        if (error) {
-            alert("Vote failed")
-        }
     }
 
     const handleUpload = async () => {
-        if (!file || !user) {
-            alert("Login and select a file first")
-            return
-        }
+        if (!file || !user) return
 
         setUploadLoading(true)
 
         try {
             const { data: sessionData } = await supabase.auth.getSession()
             const token = sessionData.session?.access_token
-            if (!token) throw new Error("No auth token found")
+            if (!token) throw new Error()
 
             const presignedRes = await fetch(
                 "https://api.almostcrackd.ai/pipeline/generate-presigned-url",
@@ -151,16 +139,14 @@ export default function Home() {
                     body: JSON.stringify({ contentType: file.type }),
                 }
             )
-            if (!presignedRes.ok) throw new Error("Presigned URL request failed")
 
             const { presignedUrl, cdnUrl } = await presignedRes.json()
 
-            const uploadRes = await fetch(presignedUrl, {
+            await fetch(presignedUrl, {
                 method: "PUT",
                 headers: { "Content-Type": file.type },
                 body: file,
             })
-            if (!uploadRes.ok) throw new Error("Upload failed")
 
             const registerRes = await fetch(
                 "https://api.almostcrackd.ai/pipeline/upload-image-from-url",
@@ -176,7 +162,6 @@ export default function Home() {
                     }),
                 }
             )
-            if (!registerRes.ok) throw new Error("Register image failed")
 
             const { imageId } = await registerRes.json()
 
@@ -191,13 +176,10 @@ export default function Home() {
                     body: JSON.stringify({ imageId }),
                 }
             )
-            if (!captionRes.ok) throw new Error("Generate captions failed")
 
             const captionData = await captionRes.json()
             setGeneratedCaptions(captionData)
-        } catch (err) {
-            alert("Upload process failed")
-        }
+        } catch {}
 
         setUploadLoading(false)
     }
@@ -239,7 +221,9 @@ export default function Home() {
                     <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
-                        onChange={(e) => setFile(e.target.files?.[0] || null)}
+                        onChange={(e) =>
+                            setFile(e.target.files?.[0] || null)
+                        }
                     />
 
                     <button
@@ -255,7 +239,9 @@ export default function Home() {
                     </button>
 
                     {uploadLoading && (
-                        <p style={{ marginTop: 15 }}>Generating captions...</p>
+                        <p style={{ marginTop: 15 }}>
+                            Generating captions...
+                        </p>
                     )}
 
                     {generatedCaptions.length > 0 && (
@@ -305,7 +291,9 @@ export default function Home() {
                                 }}
                             />
                         ) : (
-                            <span style={{ color: "white" }}>No image found</span>
+                            <span style={{ color: "white" }}>
+                                No image found
+                            </span>
                         )}
                     </div>
 
@@ -329,7 +317,9 @@ export default function Home() {
                             }}
                         >
                             <button
-                                onClick={() => handleVote(caption.id, 1)}
+                                onClick={() =>
+                                    handleVote(caption.id, 1)
+                                }
                                 style={{
                                     padding: "14px 40px",
                                     borderRadius: 40,
@@ -344,7 +334,9 @@ export default function Home() {
                             </button>
 
                             <button
-                                onClick={() => handleVote(caption.id, -1)}
+                                onClick={() =>
+                                    handleVote(caption.id, -1)
+                                }
                                 style={{
                                     padding: "14px 40px",
                                     borderRadius: 40,
@@ -362,26 +354,41 @@ export default function Home() {
                 </div>
             ))}
 
-            <div style={{ marginBottom: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-                {hasMore ? (
-                    <button
-                        onClick={() => setPage((prev) => prev + 1)}
-                        disabled={loadingMore}
-                        style={{
-                            padding: "12px 30px",
-                            borderRadius: 30,
-                            border: "2px solid black",
-                            backgroundColor: "white",
-                            opacity: loadingMore ? 0.6 : 1,
-                            cursor: loadingMore ? "not-allowed" : "pointer",
-                        }}
-                    >
-                        {loadingMore ? "Loading..." : "Load More Memes"}
-                    </button>
-                ) : (
-                    <p style={{ fontWeight: 600 }}>No more memes to vote 😭</p>
-                )}
-            </div>
+            {user && (
+                <div
+                    style={{
+                        marginBottom: 100,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 12,
+                    }}
+                >
+                    {hasMore ? (
+                        <button
+                            onClick={() =>
+                                setPage((prev) => prev + 1)
+                            }
+                            disabled={loadingMore}
+                            style={{
+                                padding: "12px 30px",
+                                borderRadius: 30,
+                                border: "2px solid black",
+                                backgroundColor: "white",
+                                opacity: loadingMore ? 0.6 : 1,
+                            }}
+                        >
+                            {loadingMore
+                                ? "Loading..."
+                                : "Load More Memes"}
+                        </button>
+                    ) : (
+                        <p style={{ fontWeight: 600 }}>
+                            No more memes to vote
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
