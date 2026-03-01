@@ -11,66 +11,93 @@ export default function Home() {
     const [userVotes, setUserVotes] = useState<Record<string, number>>({})
     const [file, setFile] = useState<File | null>(null)
     const [uploadLoading, setUploadLoading] = useState(false)
-    const [loading, setLoading] = useState(true)
+
+    const [page, setPage] = useState(0)
+    const PAGE_SIZE = 10
+
+    const [initialLoading, setInitialLoading] = useState(true)
+    const [loadingMore, setLoadingMore] = useState(false)
+    const [hasMore, setHasMore] = useState(true)
 
     const FRAME_WIDTH = 600
     const FRAME_HEIGHT = 360
 
     useEffect(() => {
         const loadData = async () => {
-            setLoading(true)
+            if (page === 0) setInitialLoading(true)
+            else setLoadingMore(true)
 
-            const [{ data: captionData }, { data: userData }] =
-                await Promise.all([
-                    supabase.from("captions").select("id, content, image_id").limit(20),
-                    supabase.auth.getUser(),
-                ])
+            try {
+                const [{ data: captionData, error: captionErr }, { data: userData, error: userErr }] =
+                    await Promise.all([
+                        supabase
+                            .from("captions")
+                            .select("id, content, image_id")
+                            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
+                        supabase.auth.getUser(),
+                    ])
 
-            const currentUser = userData.user
-            setUser(currentUser)
+                if (captionErr) throw captionErr
+                if (userErr) throw userErr
 
-            const imageIds = captionData?.map((c: any) => c.image_id).filter(Boolean)
+                const currentUser = userData.user
+                setUser(currentUser)
 
-            let imageMap = new Map<string, string>()
+                const caps = captionData || []
+                if (caps.length < PAGE_SIZE) setHasMore(false)
 
-            if (imageIds && imageIds.length > 0) {
-                const { data: images } = await supabase
-                    .from("images")
-                    .select("id, url")
-                    .in("id", imageIds)
+                const imageIds = caps.map((c: any) => c.image_id).filter(Boolean)
+                const imageMap = new Map<string, string>()
 
-                images?.forEach((img: any) => {
-                    imageMap.set(img.id, img.url)
+                if (imageIds.length > 0) {
+                    const { data: images, error: imgErr } = await supabase
+                        .from("images")
+                        .select("id, url")
+                        .in("id", imageIds)
+
+                    if (imgErr) throw imgErr
+
+                    images?.forEach((img: any) => {
+                        imageMap.set(img.id, img.url)
+                    })
+                }
+
+                const merged = caps.map((c: any) => ({
+                    ...c,
+                    image_url: c.image_id ? imageMap.get(c.image_id) || null : null,
+                }))
+
+                setCaptions((prev) => {
+                    if (page === 0) return merged
+                    const seen = new Set(prev.map((p: any) => p.id))
+                    const appended = merged.filter((m: any) => !seen.has(m.id))
+                    return [...prev, ...appended]
                 })
+
+                if (currentUser && page === 0) {
+                    const { data: votes, error: voteErr } = await supabase
+                        .from("caption_votes")
+                        .select("caption_id, vote_value")
+                        .eq("profile_id", currentUser.id)
+
+                    if (voteErr) throw voteErr
+
+                    const voteMap: Record<string, number> = {}
+                    votes?.forEach((v: any) => {
+                        voteMap[v.caption_id] = v.vote_value
+                    })
+                    setUserVotes(voteMap)
+                }
+            } catch (e) {
+                setHasMore(false)
+            } finally {
+                setInitialLoading(false)
+                setLoadingMore(false)
             }
-
-            const merged = captionData?.map((c: any) => ({
-                ...c,
-                image_url: c.image_id ? imageMap.get(c.image_id) || null : null,
-            }))
-
-            setCaptions(merged || [])
-
-            // 🔥 Load existing votes so they persist on refresh
-            if (currentUser && captionData?.length) {
-                const { data: votes } = await supabase
-                    .from("caption_votes")
-                    .select("caption_id, vote_value")
-                    .eq("profile_id", currentUser.id)
-
-                const voteMap: Record<string, number> = {}
-                votes?.forEach((v: any) => {
-                    voteMap[v.caption_id] = v.vote_value
-                })
-
-                setUserVotes(voteMap)
-            }
-
-            setLoading(false)
         }
 
         loadData()
-    }, [])
+    }, [page])
 
     const handleVote = async (captionId: string, value: number) => {
         if (!user) {
@@ -78,9 +105,9 @@ export default function Home() {
             return
         }
 
-        const now = new Date().toISOString()
-
         setUserVotes((prev) => ({ ...prev, [captionId]: value }))
+
+        const now = new Date().toISOString()
 
         const { error } = await supabase
             .from("caption_votes")
@@ -96,7 +123,6 @@ export default function Home() {
             )
 
         if (error) {
-            console.log("Vote failed:", error)
             alert("Vote failed")
         }
     }
@@ -112,8 +138,7 @@ export default function Home() {
         try {
             const { data: sessionData } = await supabase.auth.getSession()
             const token = sessionData.session?.access_token
-
-            if (!token) throw new Error("No auth token")
+            if (!token) throw new Error("No auth token found")
 
             const presignedRes = await fetch(
                 "https://api.almostcrackd.ai/pipeline/generate-presigned-url",
@@ -126,8 +151,7 @@ export default function Home() {
                     body: JSON.stringify({ contentType: file.type }),
                 }
             )
-
-            if (!presignedRes.ok) throw new Error("Presigned URL failed")
+            if (!presignedRes.ok) throw new Error("Presigned URL request failed")
 
             const { presignedUrl, cdnUrl } = await presignedRes.json()
 
@@ -136,7 +160,6 @@ export default function Home() {
                 headers: { "Content-Type": file.type },
                 body: file,
             })
-
             if (!uploadRes.ok) throw new Error("Upload failed")
 
             const registerRes = await fetch(
@@ -153,8 +176,7 @@ export default function Home() {
                     }),
                 }
             )
-
-            if (!registerRes.ok) throw new Error("Register failed")
+            if (!registerRes.ok) throw new Error("Register image failed")
 
             const { imageId } = await registerRes.json()
 
@@ -169,22 +191,28 @@ export default function Home() {
                     body: JSON.stringify({ imageId }),
                 }
             )
-
-            if (!captionRes.ok) throw new Error("Caption generation failed")
+            if (!captionRes.ok) throw new Error("Generate captions failed")
 
             const captionData = await captionRes.json()
             setGeneratedCaptions(captionData)
         } catch (err) {
-            console.error(err)
             alert("Upload process failed")
         }
 
         setUploadLoading(false)
     }
 
-    if (loading) {
+    if (initialLoading) {
         return (
-            <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", fontSize: 20 }}>
+            <div
+                style={{
+                    minHeight: "100vh",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    fontSize: 20,
+                }}
+            >
                 Loading...
             </div>
         )
@@ -197,6 +225,7 @@ export default function Home() {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                paddingTop: 40,
             }}
         >
             <LoginButton />
@@ -210,9 +239,7 @@ export default function Home() {
                     <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif,image/heic"
-                        onChange={(e) =>
-                            setFile(e.target.files?.[0] || null)
-                        }
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
 
                     <button
@@ -228,9 +255,7 @@ export default function Home() {
                     </button>
 
                     {uploadLoading && (
-                        <p style={{ marginTop: 15 }}>
-                            Generating captions...
-                        </p>
+                        <p style={{ marginTop: 15 }}>Generating captions...</p>
                     )}
 
                     {generatedCaptions.length > 0 && (
@@ -310,7 +335,9 @@ export default function Home() {
                                     borderRadius: 40,
                                     border: "2px solid black",
                                     backgroundColor:
-                                        userVotes[caption.id] === 1 ? "#facc15" : "white",
+                                        userVotes[caption.id] === 1
+                                            ? "#facc15"
+                                            : "white",
                                 }}
                             >
                                 👍 Upvote
@@ -323,7 +350,9 @@ export default function Home() {
                                     borderRadius: 40,
                                     border: "2px solid black",
                                     backgroundColor:
-                                        userVotes[caption.id] === -1 ? "#facc15" : "white",
+                                        userVotes[caption.id] === -1
+                                            ? "#facc15"
+                                            : "white",
                                 }}
                             >
                                 👎 Downvote
@@ -332,6 +361,27 @@ export default function Home() {
                     )}
                 </div>
             ))}
+
+            <div style={{ marginBottom: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+                {hasMore ? (
+                    <button
+                        onClick={() => setPage((prev) => prev + 1)}
+                        disabled={loadingMore}
+                        style={{
+                            padding: "12px 30px",
+                            borderRadius: 30,
+                            border: "2px solid black",
+                            backgroundColor: "white",
+                            opacity: loadingMore ? 0.6 : 1,
+                            cursor: loadingMore ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        {loadingMore ? "Loading..." : "Load More Memes"}
+                    </button>
+                ) : (
+                    <p style={{ fontWeight: 600 }}>No more memes to vote 😭</p>
+                )}
+            </div>
         </div>
     )
 }
