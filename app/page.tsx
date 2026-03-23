@@ -102,20 +102,45 @@ export default function Home() {
 
         setUserVotes((prev) => ({ ...prev, [captionId]: value }))
 
-        const now = new Date().toISOString()
-
-        await supabase
+        const { data: existingVote, error: fetchError } = await supabase
             .from("caption_votes")
-            .upsert(
-                {
+            .select("id")
+            .eq("profile_id", user.id)
+            .eq("caption_id", captionId)
+            .maybeSingle()
+
+        if (fetchError) {
+            console.log("Fetch existing vote failed:", fetchError)
+            return
+        }
+
+        if (existingVote) {
+            const { error } = await supabase
+                .from("caption_votes")
+                .update({
+                    vote_value: value,
+                    modified_by_user_id: user.id,
+                })
+                .eq("id", existingVote.id)
+
+            if (error) {
+                console.log("Update vote failed:", error)
+            }
+        } else {
+            const { error } = await supabase
+                .from("caption_votes")
+                .insert({
                     profile_id: user.id,
                     caption_id: captionId,
                     vote_value: value,
-                    created_datetime_utc: now,
-                    modified_datetime_utc: now,
-                },
-                { onConflict: "profile_id,caption_id" }
-            )
+                    created_by_user_id: user.id,
+                    modified_by_user_id: user.id,
+                })
+
+            if (error) {
+                console.log("Insert vote failed:", error)
+            }
+        }
     }
 
     const handleUpload = async () => {
