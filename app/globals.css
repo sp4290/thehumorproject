@@ -1,10 +1,413 @@
 html, body {
     padding: 0;
     margin: 0;
-    font-family: sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f7f7fb;
+    color: #111827;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+a {
+    color: inherit;
+}
+
+button {
+    font: inherit;
 }
 
 main {
-    max-width: 900px;
+    max-width: 1100px;
     margin: 0 auto;
+}
+
+.page-loading,
+.protected-loading {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 20px;
+}
+
+.home-page,
+.quickvote-page,
+.protected-page {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+}
+
+.home-header,
+.quickvote-header,
+.protected-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.home-title {
+    margin: 0;
+    font-size: 2.2rem;
+}
+
+.home-subtitle,
+.quickvote-subtitle {
+    margin-top: 8px;
+    color: #4b5563;
+    max-width: 760px;
+}
+
+.header-actions,
+.quickvote-links,
+.protected-links,
+.mode-toggle-buttons,
+.quickvote-actions,
+.quickvote-secondary-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.secondary-link,
+.mode-toggle-buttons button,
+.quickvote-secondary-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #111827;
+    border-radius: 999px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+.secondary-link:disabled,
+.quickvote-secondary-actions button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.primary-button {
+    border: none;
+    background: #111827;
+    color: white;
+    border-radius: 999px;
+    padding: 12px 20px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.primary-button:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.auth-status-card,
+.status-bar,
+.mode-toggle-card,
+.upload-card,
+.progress-card,
+.quickvote-progress-card,
+.quickvote-card,
+.info-message,
+.empty-history {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.auth-status-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.auth-status-title {
+    margin: 0 0 6px 0;
+    font-size: 1.2rem;
+}
+
+.auth-status-text {
+    margin: 0;
+    color: #4b5563;
+}
+
+.auth-status-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.auth-login-slot {
+    display: flex;
+    align-items: center;
+}
+
+.auth-login-slot button,
+.auth-login-slot a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #111827;
+    border-radius: 999px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+
+.mode-active {
+    background: #111827 !important;
+    color: white !important;
+    border-color: #111827 !important;
+}
+
+.upload-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 16px;
+}
+
+.generated-results {
+    margin-top: 20px;
+}
+
+.generated-helper-text {
+    color: #4b5563;
+}
+
+.generated-caption-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.generated-caption-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 14px;
+    background: #fafafa;
+}
+
+.progress-bar-track {
+    width: 100%;
+    height: 14px;
+    border-radius: 999px;
+    background: #e5e7eb;
+    overflow: hidden;
+    margin: 12px 0;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #111827;
+    border-radius: 999px;
+}
+
+.progress-helper-text {
+    margin-top: 8px;
+    color: #6b7280;
+    font-size: 0.95rem;
+}
+
+.feed-section {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.meme-card,
+.history-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.flashcard-card {
+    max-width: 760px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.meme-image-frame,
+.quickvote-image-frame {
+    width: 100%;
+    max-width: 600px;
+    height: 360px;
+    background: #111;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 18px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.meme-image,
+.quickvote-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.image-fallback,
+.quickvote-image-fallback {
+    color: white;
+}
+
+.meme-caption,
+.quickvote-caption,
+.history-caption {
+    font-size: 1.2rem;
+    line-height: 1.6;
+    text-align: center;
+    margin: 20px auto 0;
+    max-width: 760px;
+}
+
+.flashcard-meta-text {
+    text-align: center;
+    margin-top: 12px;
+    color: #4b5563;
+}
+
+.vote-row,
+.quickvote-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.flashcard-nav-row {
+    margin-top: 14px;
+}
+
+.vote-pill,
+.vote-button {
+    min-width: 150px;
+    padding: 14px 22px;
+    font-size: 1rem;
+    border-radius: 999px;
+    border: 2px solid #111827;
+    background: white;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.vote-pill.selected,
+.vote-button.selected {
+    background: #fde68a;
+}
+
+.login-note,
+.quickvote-login-note {
+    margin-top: 20px;
+    text-align: center;
+    color: #6b7280;
+}
+
+.load-more-section {
+    margin-top: 28px;
+    display: flex;
+    justify-content: center;
+}
+
+.end-note {
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.history-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 18px;
+    padding: 18px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+}
+
+.summary-card strong {
+    display: block;
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+}
+
+.history-grid {
+    display: grid;
+    gap: 20px;
+    justify-items: center;
+}
+
+.history-card {
+    width: 100%;
+    max-width: 760px;
+}
+
+.history-image {
+    width: 100%;
+    max-width: 320px;
+    border-radius: 16px;
+    display: block;
+    margin: 0 auto 16px auto;
+}
+
+.history-vote,
+.history-time {
+    color: #4b5563;
+    text-align: center;
+}
+
+@media (max-width: 700px) {
+    .home-page,
+    .quickvote-page,
+    .protected-page {
+        padding: 20px 14px 60px;
+    }
+
+    .home-title {
+        font-size: 1.8rem;
+    }
+
+    .meme-image-frame,
+    .quickvote-image-frame {
+        height: 240px;
+    }
+
+    .vote-pill,
+    .vote-button {
+        width: 100%;
+    }
+
+    .auth-status-card {
+        align-items: flex-start;
+    }
 }
