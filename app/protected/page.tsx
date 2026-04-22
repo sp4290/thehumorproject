@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import AuthStatusSection from "@/components/AuthStatusSection"
 
@@ -34,7 +34,10 @@ export default function Protected() {
     const [initialHistoryLoading, setInitialHistoryLoading] = useState(true)
     const [loadingMore, setLoadingMore] = useState(false)
     const [hasMore, setHasMore] = useState(true)
+
     const [totalVoteCount, setTotalVoteCount] = useState(0)
+    const [totalUpvoteCount, setTotalUpvoteCount] = useState(0)
+    const [totalDownvoteCount, setTotalDownvoteCount] = useState(0)
 
     const attachImagesToHistoryItems = async (items: VoteHistoryItem[]) => {
         const captionsWithIds = items
@@ -97,19 +100,48 @@ export default function Protected() {
         }))
     }
 
-    const loadTotalVoteCount = async (userId: string) => {
-        const { count, error } = await supabase
-            .from("caption_votes")
-            .select("id", { count: "exact", head: true })
-            .eq("profile_id", userId)
+    const loadTotalVoteStats = async (userId: string) => {
+        const [
+            { count: totalCount, error: totalError },
+            { count: upCount, error: upError },
+            { count: downCount, error: downError },
+        ] = await Promise.all([
+            supabase
+                .from("caption_votes")
+                .select("id", { count: "exact", head: true })
+                .eq("profile_id", userId),
+            supabase
+                .from("caption_votes")
+                .select("id", { count: "exact", head: true })
+                .eq("profile_id", userId)
+                .eq("vote_value", 1),
+            supabase
+                .from("caption_votes")
+                .select("id", { count: "exact", head: true })
+                .eq("profile_id", userId)
+                .eq("vote_value", -1),
+        ])
 
-        if (error) {
-            console.log("Failed to load total vote count:", error)
+        if (totalError) {
+            console.log("Failed to load total vote count:", totalError)
             setTotalVoteCount(0)
-            return
+        } else {
+            setTotalVoteCount(totalCount ?? 0)
         }
 
-        setTotalVoteCount(count ?? 0)
+        if (upError) {
+            console.log("Failed to load total upvote count:", upError)
+            setTotalUpvoteCount(0)
+        } else {
+            setTotalUpvoteCount(upCount ?? 0)
+        }
+
+        if (downError) {
+            console.log("Failed to load total downvote count:", downError)
+            setTotalDownvoteCount(0)
+        } else {
+            setTotalDownvoteCount(downCount ?? 0)
+        }
     }
 
     const loadVoteHistoryPage = async (userId: string, targetPage: number) => {
@@ -201,7 +233,10 @@ export default function Protected() {
         setPage(0)
         setHasMore(true)
         setTotalVoteCount(0)
+        setTotalUpvoteCount(0)
+        setTotalDownvoteCount(0)
         setInitialHistoryLoading(false)
+        setLoadingMore(false)
     }
 
     useEffect(() => {
@@ -247,7 +282,7 @@ export default function Protected() {
         setPage(0)
 
         const loadInitialHistory = async () => {
-            await loadTotalVoteCount(user.id)
+            await loadTotalVoteStats(user.id)
             await loadVoteHistoryPage(user.id, 0)
         }
 
@@ -267,16 +302,6 @@ export default function Protected() {
             console.log("Logout failed:", error)
         }
     }
-
-    const loadedUpvotes = useMemo(
-        () => history.filter((item) => item.vote_value === 1).length,
-        [history]
-    )
-
-    const loadedDownvotes = useMemo(
-        () => history.filter((item) => item.vote_value === -1).length,
-        [history]
-    )
 
     return (
         <div className="protected-page">
@@ -317,12 +342,12 @@ export default function Protected() {
                             <span>Total votes</span>
                         </div>
                         <div className="summary-card">
-                            <strong>{loadedUpvotes}</strong>
-                            <span>Loaded upvotes</span>
+                            <strong>{totalUpvoteCount}</strong>
+                            <span>Total upvotes</span>
                         </div>
                         <div className="summary-card">
-                            <strong>{loadedDownvotes}</strong>
-                            <span>Loaded downvotes</span>
+                            <strong>{totalDownvoteCount}</strong>
+                            <span>Total downvotes</span>
                         </div>
                     </div>
 

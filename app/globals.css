@@ -411,3 +411,24 @@ main {
         align-items: flex-start;
     }
 }
+
+    .floating-arrow-buttons {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 9999;
+    }
+
+    .floating-arrow-button {
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        border-radius: 999px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1;
+        min-width: 48px;
+    }

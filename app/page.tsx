@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import AuthStatusSection from "@/components/AuthStatusSection"
 
@@ -51,13 +51,16 @@ export default function Home() {
     const [hasMore, setHasMore] = useState(true)
 
     const [flashcardIndex, setFlashcardIndex] = useState(-1)
+    const [flashcardLoading, setFlashcardLoading] = useState(false)
     const [totalCaptionCount, setTotalCaptionCount] = useState(0)
+
+    const pendingFlashcardPageRef = useRef<number | null>(null)
 
     useEffect(() => {
         const loadTotalCount = async () => {
             const { count, error } = await supabase
                 .from("captions")
-                .select("*", { count: "exact", head: true })
+                .select("id", { count: "exact", head: true })
 
             if (error) {
                 console.log("Failed to load caption count:", error)
@@ -76,24 +79,17 @@ export default function Home() {
             else setLoadingMore(true)
 
             try {
-                const [{ data: captionData, error: captionError }, { data: userData }] =
-                    await Promise.all([
-                        supabase
-                            .from("captions")
-                            .select("id, content, image_id")
-                            .order("id", { ascending: true })
-                            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
-                        supabase.auth.getUser(),
-                    ])
+                const { data: captionData, error: captionError } = await supabase
+                    .from("captions")
+                    .select("id, content, image_id")
+                    .order("id", { ascending: true })
+                    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
 
                 if (captionError) {
                     console.log("Caption load failed:", captionError)
                     setHasMore(false)
                     return
                 }
-
-                const currentUser = userData.user
-                setUser(currentUser)
 
                 const caps = (captionData || []) as CaptionRow[]
 
@@ -138,23 +134,6 @@ export default function Home() {
                     const appended = merged.filter((m) => !seen.has(m.id))
                     return [...prev, ...appended]
                 })
-
-                if (currentUser && page === 0) {
-                    const { data: votes, error: voteError } = await supabase
-                        .from("caption_votes")
-                        .select("caption_id, vote_value")
-                        .eq("profile_id", currentUser.id)
-
-                    if (voteError) {
-                        console.log("Vote load failed:", voteError)
-                    }
-
-                    const voteMap: Record<string, number> = {}
-                    votes?.forEach((v: any) => {
-                        voteMap[v.caption_id] = v.vote_value
-                    })
-                    setUserVotes(voteMap)
-                }
             } catch (error) {
                 console.log("Load failed:", error)
                 setHasMore(false)
@@ -201,22 +180,6 @@ export default function Home() {
         return () => subscription.unsubscribe()
     }, [])
 
-    useEffect(() => {
-        if (viewMode !== "flashcard") return
-        if (!user) return
-        if (captions.length === 0) return
-
-        const firstUnvoted = findFirstUnvotedIndex(captions, userVotes)
-
-        if (firstUnvoted >= 0) {
-            setFlashcardIndex(firstUnvoted)
-        } else if (hasMore && !loadingMore) {
-            setPage((prev) => prev + 1)
-        } else {
-            setFlashcardIndex(-1)
-        }
-    }, [viewMode, captions, userVotes, hasMore, loadingMore, user])
-
     const totalVotedCount = useMemo(() => {
         return Object.keys(userVotes).length
     }, [userVotes])
@@ -224,6 +187,56 @@ export default function Home() {
     const totalRemainingCount = useMemo(() => {
         return Math.max(totalCaptionCount - totalVotedCount, 0)
     }, [totalCaptionCount, totalVotedCount])
+
+    useEffect(() => {
+        if (viewMode !== "flashcard") return
+        if (!user) return
+
+        const firstUnvoted = findFirstUnvotedIndex(captions, userVotes)
+
+        if (firstUnvoted >= 0) {
+            setFlashcardIndex(firstUnvoted)
+            setFlashcardLoading(false)
+            pendingFlashcardPageRef.current = null
+            return
+        }
+
+        if ((initialLoading || loadingMore) && totalRemainingCount > 0) {
+            setFlashcardLoading(true)
+            return
+        }
+
+        if (captions.length === 0 && totalRemainingCount > 0) {
+            setFlashcardLoading(true)
+            return
+        }
+
+        if (hasMore && !loadingMore && !initialLoading && totalRemainingCount > 0) {
+            const nextPage = page + 1
+
+            if (pendingFlashcardPageRef.current !== nextPage) {
+                pendingFlashcardPageRef.current = nextPage
+                setFlashcardLoading(true)
+                setPage(nextPage)
+            }
+
+            return
+        }
+
+        setFlashcardLoading(false)
+        setFlashcardIndex(-1)
+        pendingFlashcardPageRef.current = null
+    }, [
+        viewMode,
+        captions,
+        userVotes,
+        hasMore,
+        loadingMore,
+        initialLoading,
+        user,
+        totalRemainingCount,
+        page,
+    ])
 
     const flashcardCaption =
         flashcardIndex >= 0 && flashcardIndex < captions.length
@@ -295,9 +308,11 @@ export default function Home() {
 
             if (nextUnvotedIndex >= 0) {
                 setFlashcardIndex(nextUnvotedIndex)
-            } else if (hasMore && !loadingMore) {
-                setPage((prev) => prev + 1)
+                setFlashcardLoading(false)
+            } else if (totalRemainingCount - 1 > 0) {
+                setFlashcardLoading(true)
             } else {
+                setFlashcardLoading(false)
                 setFlashcardIndex(-1)
             }
         }
@@ -382,6 +397,14 @@ export default function Home() {
         } finally {
             setUploadLoading(false)
         }
+    }
+
+    const scrollToTop = () => {
+        window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+
+    const scrollToBottom = () => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })
     }
 
     return (
@@ -577,6 +600,10 @@ export default function Home() {
                                 </button>
                             </div>
                         </article>
+                    ) : flashcardLoading || totalRemainingCount > 0 ? (
+                        <article className="meme-card">
+                            <p className="meme-caption">Loading memes...</p>
+                        </article>
                     ) : (
                         <article className="meme-card">
                             <p className="meme-caption">You’ve voted on all available memes.</p>
@@ -600,6 +627,27 @@ export default function Home() {
                     )}
                 </section>
             )}
+
+            {viewMode === "feed" ? (
+                <div className="floating-arrow-buttons">
+                    <button
+                        type="button"
+                        className="secondary-link floating-arrow-button"
+                        onClick={scrollToTop}
+                        aria-label="Scroll to top"
+                    >
+                        ↑
+                    </button>
+                    <button
+                        type="button"
+                        className="secondary-link floating-arrow-button"
+                        onClick={scrollToBottom}
+                        aria-label="Scroll to bottom"
+                    >
+                        ↓
+                    </button>
+                </div>
+            ) : null}
         </div>
     )
 }
