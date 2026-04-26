@@ -370,20 +370,32 @@ export default function Home() {
 
             const { imageId } = await registerRes.json()
 
-            const captionRes = await fetch(
-                "https://api.almostcrackd.ai/pipeline/generate-captions",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ imageId }),
-                }
+            const captionResponses = await Promise.all(
+                Array.from({ length: 5 }, async () => {
+                    const captionRes = await fetch(
+                        "https://api.almostcrackd.ai/pipeline/generate-captions",
+                        {
+                            method: "POST",
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({ imageId }),
+                        }
+                    )
+
+                    return captionRes.json()
+                })
             )
 
-            const captionData = await captionRes.json()
-            const normalizedCaptions = Array.isArray(captionData) ? captionData : []
+            const normalizedCaptions = captionResponses
+                .flatMap((captionData) => {
+                    if (Array.isArray(captionData)) return captionData
+                    if (Array.isArray(captionData?.captions)) return captionData.captions
+                    if (captionData?.content || captionData?.text) return [captionData]
+                    return []
+                })
+                .slice(0, 5)
 
             setGeneratedCaptions(normalizedCaptions)
             setUploadMessage(
@@ -451,7 +463,7 @@ export default function Home() {
                         <button
                             onClick={handleUpload}
                             disabled={uploadLoading}
-                            className="primary-button"
+                            className="primary-button upload-generate-button"
                         >
                             {uploadLoading ? "Generating..." : "Upload & Generate"}
                         </button>
