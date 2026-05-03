@@ -1,0 +1,165 @@
+* latest commit-specific URL to Project 1 (caption creation and rating app)
+https://thehumorproject13voting.vercel.app/
+
+
+* latest commit-specific URL to Project 2 (admin area app)
+https://thehumorproject13admin.vercel.app/
+
+
+* latest commit-specific URL to Project 3 (prompt chain tool app)
+https://thehumorproject13prompt.vercel.app/
+
+
+* the name of your humor flavor
+Humor Flavour: 
+dry (id:523) 
+
+
+* a sample of your humor flavor’s generated captions
+
+Image: 
+two dogs running down a hill
+
+Generated Captions: 
+1) the way i relate to wanting things less when it’s out of spite
+2) just two overachievers competing literally for rocks again
+3) literally been in that group project war just let it go
+4) totally me chasing after someone who took my hoodie smh
+5) relatable power struggle energy over literally nothing i’m tired
+
+
+* your user feedback summary for a user testing your Project 1 (caption generation and rating app)
+
+Key Learnings:
+- Users value both simplicity and engagement differently
+- Voting interaction style (scroll vs flashcards) impacted usability and speed of interaction
+- Clear visibility for votes, generated content, and content updates is important for user understanding
+
+Surprises:
+- Some users preferred scrolling for flexibility, while others found it inefficient
+- The same design choice (plain layout, repeated images) was interpreted both positively and negatively
+- Content being both repetitive and unpredictably reordered caused confusion rather than variety
+
+Patterns Across Users:
+- Difficulty with voting interaction while scrolling
+- Repetition of content reduced engagement over time
+- Desire for more feedback such as vote tracking and generated content results
+- Inconsistent or unclear content updates such as order changes and recycled memes caused confusion
+
+Planned Improvements:
+- Add a flashcard style voting mode as an alternative to scrolling
+- Improve content consistency such as reduce repetition and avoid unexpected reordering
+- Add voting history and allow users to review past upvotes/downvotes
+- Improve caption generation flow by adding generated content directly to the feed or providing confirmation
+- Add progress indicator or number of remaining memes
+- Add basic analytics like percentage of votes or top memes
+
+Summary of Changes After Feedback: 
+
+1 Enhanced Account/ Auth UI
+Added clear account section with welcome message (username) and logout -> improves clarity of login state
+
+2 Enhanced UI Consistency & Engagement
+Redesigned layout with consistent card styling and spacing -> addresses feedback that the app felt plain and empty
+
+3 Enhanced Voting Interaction UI
+Enlarged and centered vote buttons -> reduces cursor accuracy issues and supports faster voting
+
+4 Added Flashcard/ Feed Mode Toggle
+Introduced flashcard mode (one by one, faster voting) and feed mode (scrollable, revisit votes) -> addresses different user preferences for interaction 
+
+5 Added Voting Progress Indicator
+Displayed voted and remaining memes with a progress bar -> resolves uncertainty about how many memes are left 
+
+6 Added Vote History Feature
+Showed past votes with totals (votes, upvotes, downvotes) -> improves visibility of user activity, gives the user more control
+
+7 Enhanced Content Loading & Consistency
+Implemented step by step loading with “Load More” button -> reduces repetition and prevents random reordering 
+
+8 Enhanced Caption Generation Feedback
+Added confirmation messages and displays generated captions -> clarifies post generation flow
+
+9 Enhanced Navigation & Usability
+Added mode toggle, vote history access, and scroll controls -> improves overall navigation and user flow
+
+
+* your application suite test plan
+
+Test plan and updates summary: 
+
+01 Voting App
+
+Tested:
+Vercel deployment (normal + Incognito)
+Supabase data loading (captions, images)
+Authentication (login/logout, protected actions)
+Caption generation (REST API request + response)
+Voting (upvote/downvote, persistence, refresh)
+Vote history + statistics
+UI features (scroll buttons, progress bar, flashcard/feed toggle)
+
+Issues Found:
+API returns only 1 caption instead of 5
+Button layout and spacing not aligned
+Minor UI spacing issues
+
+Fixes / Changes:
+Verified API success via Network tab
+Adjusted button alignment (right side)
+Added spacing (margin) for upload/generate section
+Confirmed voting + data persistence works correctly
+
+02 Admin App
+
+Tested:
+Vercel deployment + login flow
+Route protection (logged out / non-admin / admin)
+Dashboard statistics
+Data pages (profiles, images, captions, etc.)
+CRUD/editing functions (where available)
+
+Issues Found:
+“No rows found” across multiple tables
+UI inconsistency between main page and /admin
+Unnecessary “Go back home” button
+Extra labels (e.g., table: profiles)
+
+Fixes / Changes:
+Standardized login page layout (font, spacing)
+Removed unnecessary navigation buttons
+Cleaned UI labels
+Verified issue is due to missing data (not app crash)
+Retested editing functions for data updates
+
+03 Prompt Chain Tool
+
+Tested:
+Access control (admin / matrix admin only)
+Humor flavor CRUD (create/read/update/delete)
+Humor flavor steps (create/edit/delete/reorder)
+Caption generation using selected flavor
+Test tool behavior (flavor + image selection)
+
+Issues Found:
+Step order not reindexed after deletion
+Newly created flavors not updating immediately
+Limited image selection (no upload option)
+Theme toggle (light/dark/system) missing
+
+Fixes / Changes:
+Verified step order behavior and documented issue
+Retested after refresh for data consistency
+Identified need for image upload support
+Documented missing theme feature
+
+
+* course reflection
+
+I liked how the course was structured around building the same project throughout the semester. 
+Continuously working on and improving one project made it feel more meaningful and gave a stronger sense of achievement by the end.
+The skills we learned felt practical and applicable, especially in terms of building an actual app, conducting user testing, and making improvements based on feedback.
+Working on three interconnected projects was also useful. It required thinking about the role and purpose of each app and how they work together as a system.
+
+
+
